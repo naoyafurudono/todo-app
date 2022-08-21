@@ -182,7 +182,7 @@ sequenceDiagram
 
 ## 実装の工程管理
 
-- [ ] Transformer
+- [x] Transformer
 - [ ] View (transformerとやりとりして、リストをアップデートできる)  -- (ここまでで見た目は整う)
 - [ ] HTTP server += WebSocket (session のモック)
 - [ ] View += WebSocket -- (イベントや状態の共有が完成)

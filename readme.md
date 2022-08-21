@@ -115,7 +115,9 @@ sequenceDiagram
 たとえばサーバとクライントを両方JSで書くことにして、状態遷移の実装や状態のエンコード/デコードはサーバ、クライアント間で共通のコードを用いれば良い。
 サーバでJSを使いたくなければ、サーバのコードをJSにコンパイルして、それをクライアントで使う手もある。手間は掛かりそうだし、JSへのコンパイルに対応している言語に制限されはするが。
 
-今回はGolangをサーバで使うことにしたので、[GopherJS](https://github.com/gopherjs/gopherjs)をコンパイラとして使うことにする。
+~~今回はGolangをサーバで使うことにしたので、[GopherJS](https://github.com/gopherjs/gopherjs)をコンパイラとして使うことにする。~~
+よくよく調べてみたら、GopherJSはメイン関数を定義しないとコンパイルできないみたいだ。
+結合が面倒になりそうなので、諦めてクライアントとバックエンドのそれぞれにイベント処理を書く。
 
 ## 使う技術
 
@@ -194,4 +196,5 @@ sequenceDiagram
 ## 参考文献
 
 - [mermaid](https://mermaid-js.github.io/mermaid/#/sequenceDiagram?id=configuration): シーケンス図の書き方
-- [GopherJS](https://github.com/gopherjs/gopherjs): Go -> JS コンパイラ。transformerのソースコードを共通化するために使用
+- [GopherJS](https://github.com/gopherjs/gopherjs): Go -> JS コンパイラ。~~transformerのソースコードを共通化するために使用~~
+  - やっぱり使わないことにした。

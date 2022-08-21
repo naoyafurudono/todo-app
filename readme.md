@@ -3,6 +3,25 @@
 > **Note**
 > 人事面接などで見せられるものが欲しいので開発。
 > どんな技術を使えるかや、その使い方を見せることが目的。
+> このreadmeを含めて、独力で開発する。
+
+## 目次
+
+- [todo app](#todo-app)
+  - [目次](#目次)
+  - [アプリの説明](#アプリの説明)
+  - [実行フローの概要](#実行フローの概要)
+    - [開始](#開始)
+    - [ユーザ操作](#ユーザ操作)
+    - [保存](#保存)
+    - [懸念](#懸念)
+      - [操作結果の整合性](#操作結果の整合性)
+  - [使う技術](#使う技術)
+  - [プログラムの設計](#プログラムの設計)
+    - [クライアント](#クライアント)
+    - [サーバ](#サーバ)
+  - [実装の工程管理](#実装の工程管理)
+  - [参考文献](#参考文献)
 
 ## アプリの説明
 
@@ -171,3 +190,8 @@ sequenceDiagram
 - [ ] HTTP server += SQL server
 - [ ] Session += SQL connection
 - [ ] Session += transformer
+
+## 参考文献
+
+- [mermaid](https://mermaid-js.github.io/mermaid/#/sequenceDiagram?id=configuration): シーケンス図の書き方
+- [GopherJS](https://github.com/gopherjs/gopherjs): Go -> JS コンパイラ。transformerのソースコードを共通化するために使用

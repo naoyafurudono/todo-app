@@ -28,6 +28,7 @@
 - Todoアプリ
 - Webアプリケーション
 - Todoタスクの登録、削除、編集、保存、Todo/Doneの切り替えがGUIでできる
+- マルチユーザで同時に編集可能
 
 ## 実行フローの概要
 
@@ -70,16 +71,21 @@ sequenceDiagram
     actor user
     participant client
     participant server
+    participant another client
     participant storage
 
     client ->> server: WebSocketセッションの開始
-    activate server
+    activate client 
     loop 該当する編集操作ごとに
       user ->> client: Todoの操作
       client ->> server: Todoリストの編集イベント
+      Note over server: イベントにタイムスタンプ付与
+      server ->> another client: Todoリストの編集イベント
+      server ->> client: Todoリストの編集イベント
+
     end
     client ->> server: 切断
-    deactivate server
+    deactivate client
 ```
 
 ### 保存

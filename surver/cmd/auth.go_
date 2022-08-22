@@ -1,0 +1,161 @@
+package main
+
+import (
+	"context"
+	"encoding/json"
+	"fmt"
+	"io"
+	"io/ioutil"
+	"log"
+	"net/http"
+	"strings"
+
+	"golang.org/x/oauth2"
+	"golang.org/x/oauth2/google"
+)
+
+const googleCredJSON = ".env/client_secret_96790136940-bebu7tt35frbbgsmi5eno8dpiujp779k.apps.googleusercontent.com.json"
+
+type authHandler struct {
+	next http.Handler
+}
+
+func (h *authHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	if _, err := r.Cookie("auth"); err == http.ErrNoCookie {
+		// 未認証
+		w.Header().Set("Location", "login")
+		w.WriteHeader(http.StatusTemporaryRedirect)
+	} else if err != nil {
+		panic(err.Error())
+	} else {
+		h.next.ServeHTTP(w, r)
+	}
+}
+
+func MustAuth(handler http.Handler) http.Handler {
+	return &authHandler{next: handler}
+}
+
+func loginHandler(w http.ResponseWriter, r *http.Request) {
+	//  /auth/{action}/{provider}
+	// 0 1    2        3
+	segs := strings.Split(r.URL.Path, "/")
+	if len(segs) < 4 {
+		w.WriteHeader(http.StatusNotFound)
+		log.Printf("undefined URL: %s\n", r.URL.Path)
+		return
+	}
+	action := segs[2]
+	provider := segs[3]
+	switch action {
+	case "login":
+		var conf oauth2.Config
+		switch provider {
+		case "google":
+			confp, err := googleOAuthConf()
+			if err != nil {
+				w.WriteHeader(http.StatusInternalServerError)
+				return
+			}
+			conf = *confp
+
+		default:
+			fmt.Fprintf(w, "プロバイダ%sは未対応です\n", provider)
+			w.WriteHeader(http.StatusNotFound)
+			return
+		}
+		state := genToken()
+
+		loginURL := conf.AuthCodeURL(state)
+		w.Header().Set("Location", loginURL)
+		w.WriteHeader(http.StatusTemporaryRedirect)
+
+	// 	stateを検証した上でcodeを用いる
+	case "callback":
+		query := r.URL.Query()
+		if query.Get("error") != "" {
+			w.WriteHeader(http.StatusInternalServerError)
+			log.Println("OAuth2 failed:", query.Get("error"))
+			return
+		}
+
+		// stateの検証
+		if !checkState(query.Get("state")) {
+			w.WriteHeader(http.StatusNotFound)
+			return
+		}
+		code := query.Get("code")
+		conf, _ := googleOAuthConf()
+		tok, _ := conf.Exchange(context.TODO(), code)
+		client := conf.Client(context.TODO(), tok)
+		resp, err := client.Get("https://www.googleapis.com/oauth2/v1/userinfo")
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			log.Println(err)
+			return
+		}
+		defer resp.Body.Close()
+		b, err := io.ReadAll(resp.Body)
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			log.Println(err)
+			return
+		}
+		userData, err := getUserData(&b)
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			log.Println(err)
+			return
+		}
+
+		http.SetCookie(w, &http.Cookie{
+			Name:  "auth",
+			Value: *userData,
+			Path:  "/",
+		})
+		w.Header().Set("Location", "/chat")
+		w.WriteHeader(http.StatusTemporaryRedirect)
+
+	default:
+		w.WriteHeader(http.StatusNotFound)
+		fmt.Fprintf(w, "アクション%sは未対応です\n", action)
+	}
+}
+
+func getUserData(jsonbyte *[]byte) (*string, error) {
+	type profile struct {
+		Name string
+	}
+	var prof profile
+	if err := json.Unmarshal(*jsonbyte, &prof); err != nil {
+		return nil, err
+	}
+	return &prof.Name, nil
+}
+
+// TODO
+func checkState(actual string) bool {
+	return true
+}
+
+// OAuthのstateとして用いるセッション管理トークンを生成する
+func genToken() string {
+	return "TODO: state"
+}
+
+func googleOAuthConf() (*oauth2.Config, error) {
+	bytes, err := ioutil.ReadFile(googleCredJSON)
+	if err != nil {
+		return nil, err
+	}
+	scope := []string{
+		"https://www.googleapis.com/auth/userinfo.email",
+		"https://www.googleapis.com/auth/userinfo.profile",
+	}
+	confp, err := google.ConfigFromJSON(bytes, scope...)
+	if err != nil {
+		return nil, err
+	}
+	confp.RedirectURL = "http://localhost:8080/auth/callback/google"
+	return confp, nil
+}

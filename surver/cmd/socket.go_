@@ -1,0 +1,43 @@
+package main
+
+import (
+	"fmt"
+	"log"
+	"net/http"
+
+	"github.com/gorilla/websocket"
+)
+
+func handleWS(w http.ResponseWriter, r *http.Request) {
+	fmt.Println("come!")
+	socket, err := upgrader.Upgrade(w, r, nil)
+	if err != nil {
+		log.Fatal("ServeHTTP:", err)
+		return
+	}
+	for fuel := 10; fuel > 0; fuel -= 1 {
+		if come, err := read(socket); err != nil {
+			fmt.Println("fail to read", err)
+		} else {
+			fmt.Println(come)
+		}
+		if err := write(socket, "hello"); err != nil {
+			fmt.Println("fail to write", err)
+		}
+	}
+	socket.Close()
+}
+
+func read(socket *websocket.Conn) (string, error) {
+	var msg string
+	if err := socket.ReadJSON(&msg); err == nil {
+		return msg, err
+	} else {
+		return "", err
+	}
+}
+
+// spaceからのsendチャネルのclose、またはws接続の切断で終了する
+func write(socket *websocket.Conn, msg string) error {
+	return socket.WriteJSON(msg)
+}

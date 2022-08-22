@@ -5,7 +5,8 @@ import TodoList, { itemsSample } from "./TodoList";
 import { Item, createItem, ID } from './TodoItem';
 
 
-const TodoApp: React.FC<{}> = () => {
+const TodoApp: React.FC<{ space: string }> = ({space}) => {
+
     const [items, setItems] = useState<Item[]>(itemsSample);
     const [show, setShow] = useState<FilterCond>('all');
 
@@ -38,6 +39,9 @@ const TodoApp: React.FC<{}> = () => {
 
     return (
         <div>
+            <header>
+                space: {space}
+            </header>
             <Input handleSubmit={handleSubmit} />
             <Controller onFilterChange={onFilterChange} current={show} />
             <TodoList items={items} show={show} onToggleDone={toggleDone} />

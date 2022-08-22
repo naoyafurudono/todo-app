@@ -1,13 +1,14 @@
-import React from 'react';
+import React, { useState } from 'react';
 import './App.css';
 import TodoApp from './components/TodoApp';
 
 function App() {
+  const [space,] = useState("sample");
   return (
     <>
-      <h1>Todo App</h1>
+      <header><h1>Todo App</h1></header>
       <main>
-        <TodoApp />
+        <TodoApp space={space} />
       </main>
     </>
   );

@@ -1,9 +1,10 @@
 package space
 
 import (
-	"fmt"
 	"log"
 	"net/http"
+	"time"
+	"todo-server/util/transformer"
 
 	"github.com/gorilla/websocket"
 )
@@ -22,7 +23,7 @@ func (c *client) startRead() {
 	for {
 		var msg Message
 		if err := c.socket.ReadJSON(&msg); err == nil {
-			c.space.Forward <- &msg
+			c.space.forward <- &msg
 			log.Println("read succeed")
 		} else {
 			log.Println("client.read:", err)
@@ -35,7 +36,14 @@ func (c *client) startRead() {
 // spaceからのsendチャネルのclose、またはws接続の切断で終了する
 func (c *client) startWrite() {
 	for msg := range c.send {
-		if err := c.socket.WriteJSON(msg); err != nil {
+		// TODO create timestamp and convert msg to event
+		timestamp := time.Now().Format(time.RFC3339)
+		event := transformer.Event{
+			Command: *msg,
+			Timestamp: timestamp,
+		}
+		log.Printf("client.startWrite: %+v", *msg)
+		if err := c.socket.WriteJSON(event); err != nil {
 			break
 		}
 	}
@@ -51,29 +59,4 @@ var upgrader = &websocket.Upgrader{
 	ReadBufferSize:  socketBufferSize,
 	WriteBufferSize: socketBufferSize,
 	CheckOrigin:     func(r *http.Request) bool { return true },
-}
-
-// client session
-func (s Space) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	fmt.Println("WS come")
-	socket, err := upgrader.Upgrade(w, r, nil)
-	if err != nil {
-		log.Fatal("ServeHTTP:", err)
-		return
-	}
-
-	client := &client{
-		socket: socket,
-		send:   make(chan *Message, messageBufferSize),
-		space:  &s,
-	}
-	// if authCookie, err := req.Cookie("auth"); err == nil {
-	// 	name := authCookie.Value
-	// 	client.name = name
-	// }
-
-	s.join <- client
-	defer func() { s.leave <- client }()
-	go client.startWrite()
-	client.startRead()
 }

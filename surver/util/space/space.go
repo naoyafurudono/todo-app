@@ -1,6 +1,8 @@
 package space
 
 import (
+	"log"
+	"net/http"
 	"todo-server/util/transformer"
 )
 
@@ -30,41 +32,46 @@ import (
 // }
 
 // type Message string
-type Message transformer.Command
+type Message = transformer.Command
 
 // チャットの部屋
 type Space struct {
-	Forward chan *Message
+	forward chan *Message
 	join    chan *client
 	leave   chan *client
 	clients map[*client]bool // 所有する
-	Name    string
+	name    string
 }
 
 func NewSpace(name string) Space {
 	return Space{
-		Forward: make(chan *Message),
+		forward: make(chan *Message),
 		join:    make(chan *client),
 		leave:   make(chan *client),
 		clients: make(map[*client]bool),
-		Name:    name,
+		name:    name,
 	}
 }
 
 // spaceのセッション
-func (s *Space) Run() {
+func (s Space) Run() {
+	log.Println("start running")
 	for {
+		log.Println("running in loop")
 		select {
 		case client := <-s.join:
+			log.Println("s.Run: join a client")
 			s.clients[client] = true
 		case client := <-s.leave:
+			log.Println("s.Run: leave a client")
 			delete(s.clients, client)
 			close(client.send)
 
-			if len(s.clients) == 0 {
-				return
-			}
-		case msg := <-s.Forward:
+			// if len(s.clients) == 0 {
+			// 	return
+			// }
+		case msg := <-s.forward:
+			log.Println("s.Run: forward message")
 			for client := range s.clients {
 				client := client
 				select {
@@ -79,4 +86,37 @@ func (s *Space) Run() {
 			}
 		}
 	}
+}
+
+// client session
+func (s Space) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	log.Println("WS request come")
+	socket, err := upgrader.Upgrade(w, r, nil)
+	if err != nil {
+		log.Fatal("ServeHTTP:", err)
+		return
+	}
+
+	log.Println("init: client session")
+	defer func() {
+		log.Println("finish: client session")
+	}()
+
+	client := &client{
+		socket: socket,
+		send:   make(chan *Message, messageBufferSize),
+		space:  &s,
+	}
+	// if authCookie, err := req.Cookie("auth"); err == nil {
+	// 	name := authCookie.Value
+	// 	client.name = name
+	// }
+
+	log.Println("try to join space")
+	s.join <- client
+	log.Println("succeed to join space")
+	defer func() { s.leave <- client }()
+	go client.startWrite()
+	log.Println("start listening")
+	client.startRead()
 }

@@ -48,13 +48,18 @@ func createItem(statement string) TodoItem {
 
 // ----------------
 
-type Op int
+type Op string
 
 const (
-	Create Op = iota
-	ToggleDone
-	ModifyStatement
+	Create          Op = "create"
+	ToggleDone      Op = "toggleDone"
+	UpdateStatement Op = "updateStatement"
 )
+
+type Event struct {
+	Command   Command `json:"command"`
+	Timestamp string  `json:"timestamp`
+}
 
 type Command struct {
 	Operation Op      `json:"operation"`
@@ -107,7 +112,7 @@ func Reduce(state *State, cmd Command) {
 		state.Items[index].LastModified = stamp()
 
 		return
-	case ModifyStatement:
+	case UpdateStatement:
 		targetID := getID(cmd.Payload)
 		index, ok := findItem(state.Items, targetID)
 		if !ok {

@@ -11,7 +11,7 @@ func Test_Reduce(t *testing.T) {
 		{Operation: Create, Payload: Payload{Statement: "do test"}},
 		{Operation: Create, Payload: Payload{Statement: "finish test"}},
 		{Operation: ToggleDone, Payload: Payload{ID: "0000000000"}},
-		{Operation: ModifyStatement, Payload: Payload{ID: "0000000000", Statement: "just do it!!"}},
+		{Operation: UpdateStatement, Payload: Payload{ID: "0000000000", Statement: "just do it!!"}},
 	}
 
 	for _, cmd := range cmds {

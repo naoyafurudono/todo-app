@@ -191,9 +191,11 @@ sequenceDiagram
 ## 実装の工程管理
 
 - [x] Transformer
-- [x] View (transformerとやりとりして、リストをアップデートできる)  -- (ここまでで見た目は整う)
-- [ ] HTTP server += WebSocket (session のモック)
-- [ ] View += WebSocket -- (イベントや状態の共有が完成)
+- [x] View (リストをアップデートできる)  -- (ここまでで見た目は整う)
+- [x] HTTP server += WebSocket (session のモック)
+- [x] View += WebSocket
+- [ ] Viewでのイベント処理
+- [ ] サーバ・view間でのイベント連携
 - [ ] SQL server
 - [ ] HTTP server += SQL server
 - [ ] Session += SQL connection

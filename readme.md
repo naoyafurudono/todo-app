@@ -246,8 +246,8 @@ sequenceDiagram
 - [x] View (リストをアップデートできる)  -- (ここまでで見た目は整う)
 - [x] HTTP server += WebSocket (session のモック)
 - [x] View += WebSocket
-- [ ] Viewでのイベント処理
-- [ ] サーバ・view間でのイベント連携
+- [x] Viewでのイベント処理
+- [x] サーバ・view間でのイベント連携
 - [ ] SQL server
 - [ ] HTTP server += SQL server
 - [ ] Session += SQL connection

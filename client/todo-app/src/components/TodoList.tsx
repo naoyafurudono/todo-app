@@ -11,13 +11,17 @@ type Props = {
 // items の先頭が一番昔に追加されたもの
 const TodoList: React.FC<Props> = ({ items, onToggleDone, show }) => {
     return (
-        <ol>
-            {items.filter(item => filterItem(show, item)).reverse().map(item =>
-                <li key={item.id}>
-                    <TodoItem item={item} onToggleDone={(e: any, itemID: ID) => onToggleDone(e, itemID, items)} />
-                </li>
-            )}
-        </ol>);
+        <>
+            <h2>Items</h2>
+            <ol>
+                {items.filter(item => filterItem(show, item)).reverse().map(item =>
+                    <li key={item.id}>
+                        <TodoItem item={item} onToggleDone={(e: any, itemID: ID) => onToggleDone(e, itemID, items)} />
+                    </li>
+                )}
+            </ol>
+        </>
+    );
 };
 
 const filterItem = (op: FilterCond, item: Item) => {

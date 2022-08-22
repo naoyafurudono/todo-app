@@ -11,10 +11,13 @@ const Input = (props: { handleSubmit: any; }) => {
         setText("");
     };
     return (
-        <form id="text-input" onSubmit={handleSubmitWithInit}>
-            Enter to submit
-            <input type="text" form="text-input" name="todo-input" placeholder="put todo item here" value={text} onChange={handleChange} />
-        </form>
+        <>
+            <h2>Add to input</h2>
+            <form id="text-input" onSubmit={handleSubmitWithInit}>
+                Enter to submit
+                <input type="text" form="text-input" name="todo-input" placeholder="put todo item here" value={text} onChange={handleChange} />
+            </form>
+        </>
     );
 
 };

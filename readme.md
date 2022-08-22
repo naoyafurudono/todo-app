@@ -20,6 +20,9 @@
   - [プログラムの設計](#プログラムの設計)
     - [クライアント](#クライアント)
     - [サーバ](#サーバ)
+    - [JSON Format](#json-format)
+      - [Todo 更新イベント (pub)](#todo-更新イベント-pub)
+      - [Todo 更新イベント (sub)](#todo-更新イベント-sub)
   - [実装の工程管理](#実装の工程管理)
   - [参考文献](#参考文献)
 
@@ -187,6 +190,55 @@ sequenceDiagram
     transformer ->> session  : final state
     session ->> SQL server   : perpetuate final state
 ```
+
+### JSON Format
+
+サーバ・クライアント間での通信に用いるJSONのフォーマットを定義する。
+
+#### Todo 更新イベント (pub)
+
+クライアント -> サーバ
+
+これを `pub` とする
+
+```javascript
+{
+  "operation": string,
+  "payload": {
+    "id": string,
+    "statement": string
+  }
+}
+```
+
+`operation` は次のいずれか:
+
+- `toggleDone`
+- `updateStatement`
+- `create`
+
+`payload` に書ける内容は `operation` によって変わる。
+
+`id` は常に必須で、
+`updateStatement`, `create` が指定されたときは、`statement` が必須。
+
+#### Todo 更新イベント (sub)
+
+サーバ -> クライアント
+
+```javascript
+{
+  "command": pub,
+  "timestamp": string
+}
+```
+
+`timestamp` は RFC3339 に則って、タイムゾーンはUTCとする
+（例: `1985-04-12T23:20:50.52Z`）。
+
+`command` には対応するクライアントからの更新イベントをそのまま渡す。
+
+(`id` をサーバで付与したくなるかもしれないが、クライントで付与する。クライアントのTodoリストは、イベントに対して決定的であることが要求される。)
 
 ## 実装の工程管理
 

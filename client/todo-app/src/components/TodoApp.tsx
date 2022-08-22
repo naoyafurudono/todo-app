@@ -1,21 +1,30 @@
-import React, { useEffect, useState, useRef } from "react";
+import React, { useEffect, useState, useRef, useReducer } from "react";
 import Controller, { FilterCond } from "./Controller";
 import Input from "./Input";
 import TodoList, { itemsSample } from "./TodoList";
-import { Item, createItem, ID } from './TodoItem';
+import { ID } from './TodoItem';
+import { Command, Event } from '../engine/event-engine';
+import reducer from "../engine/event-engine";
 
 
 const TodoApp: React.FC<{ space: string }> = ({ space }) => {
-    // set up ws
     const clientRef = useRef<WebSocket>()
-    const [msgs, setMsgs] = useState<string[]>([])
+    const submitTodoCommand = function (te: Command) {
+        const ws = clientRef.current;
+        if (!ws) {
+            // alert("network error");
+            return;
+        }
+        ws.send(JSON.stringify(te));
+    };
 
+    // set up ws
     useEffect(() => {
         const wsClient = new WebSocket("ws://localhost:8080/ws")
         clientRef.current = wsClient;
         wsClient.onopen = () => {
             console.log("connect");
-            wsClient.send('hello from client')
+            // wsClient.send('hello from client')
         };
         wsClient.onclose = () => console.log("closed")
 
@@ -23,46 +32,49 @@ const TodoApp: React.FC<{ space: string }> = ({ space }) => {
         return () => { wsClient.close() };
     }, []);
 
+    // set up event subscriber
+    const [items, dispatch] = useReducer(reducer, itemsSample);
     useEffect(() => {
         if (!clientRef.current) {
+            // alert('bad WS connection');
             return;
         }
         const ws = clientRef.current;
         ws.onmessage = ((event: any) => {
-            console.log("message come")
-            console.log(event.data)
-            const newMsgs = msgs.slice();
-            const msg = event.Data;
-            newMsgs.push(msg);
-            setMsgs(newMsgs);
-            ws.send(JSON.stringify('how are you?'))
+            const msg = event.data;
+            const te: Event = JSON.parse(msg);
+            dispatch(te)
         });
 
-    }, [msgs])
-
-    const [items, setItems] = useState<Item[]>(itemsSample);
+    }, [])
     const [show, setShow] = useState<FilterCond>('all');
 
-    const extendItems = (item: Item) => {
-        let newItems = items.slice();
-        newItems.push(item);
-        setItems(newItems);
-    };
 
-    const handleSubmit = (e: React.SyntheticEvent): void => {
+    const handleCreateNewItem = (e: React.SyntheticEvent): void => {
         e.preventDefault();
         const target = e.target as typeof e.target & { value: string }[];
-        console.log(e);
-        const item = createItem(target[0].value);
-        extendItems(item);
+        const statement = target[0].value;
+        const command: Command = {
+            operation: "create",
+            payload: {
+                id: "dummy_on_handleCreateNewItem", // これはエンジンが指定する。この時点ではこの命令が発行されるとはかぎらないので 
+                statement: statement,
+            }
+        };
+        submitTodoCommand(command);
+        return
     }
 
-    const toggleDone = (e: any, id: ID, items: Item[]) => {
+    const handleToggleDone = (e: any, id: ID) => {
         e.preventDefault();
-        const idx = items.findIndex((item: Item) => item.id === id);
-        const newItems = items.slice();
-        newItems[idx].done = !items[idx].done;
-        setItems(newItems);
+        const command: Command = {
+            operation: "toggleDone",
+            payload: {
+                id: id,
+                statement: "dummy_on_toggleDone",
+            }
+        };
+        submitTodoCommand(command);
     }
 
     const onFilterChange = (e: any, op: FilterCond) => {
@@ -76,9 +88,9 @@ const TodoApp: React.FC<{ space: string }> = ({ space }) => {
             <header>
                 space: {space}
             </header>
-            <Input handleSubmit={handleSubmit} />
+            <Input handleSubmit={handleCreateNewItem} />
             <Controller onFilterChange={onFilterChange} current={show} />
-            <TodoList items={items} show={show} onToggleDone={toggleDone} />
+            <TodoList items={items} show={show} onToggleDone={handleToggleDone} />
         </div>
     );
 

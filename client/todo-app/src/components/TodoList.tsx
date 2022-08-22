@@ -1,9 +1,17 @@
 // Todo リストの表示
 import React from "react"
 import { FilterCond } from "./Controller";
-import TodoItem, { Item, ID } from './TodoItem'
+import TodoItem, { Item, ID, createItem } from './TodoItem'
+
+export type Items = Map<string, Item>;
+export const extendItems = function (statement: string, items: Items): Items {
+    const newItem: Item = createItem(statement);
+    const newItems = new Map([...items]);
+    newItems.set(newItem.id, newItem);
+    return newItems;
+};
 type Props = {
-    items: Item[];
+    items: Items;
     show: 'all' | 'todo' | 'done';
     onToggleDone: any;
 }
@@ -14,7 +22,7 @@ const TodoList: React.FC<Props> = ({ items, onToggleDone, show }) => {
         <>
             <h2>Items</h2>
             <ol>
-                {items.filter(item => filterItem(show, item)).reverse().map(item =>
+                {[...items.values()].filter(item => filterItem(show, item)).reverse().map(item =>
                     <li key={item.id}>
                         <TodoItem item={item} onToggleDone={(e: any, itemID: ID) => onToggleDone(e, itemID, items)} />
                     </li>
@@ -40,20 +48,19 @@ const filterItem = (op: FilterCond, item: Item) => {
 
 export default TodoList
 
-export const itemsSample: Item[] = [
-    {
+export const itemsSample: Items = new Map([
+    ["sample00", {
         id: "sample00",
         done: false,
         statement: "just do it!!",
         // created: "2022-08-20T19:11:21",
         // lastmodified: "2022-08-20T19:11:21",
-    },
-    {
+    }],
+    ["sample01", {
         id: "sample01",
         done: true,
         statement: "check did it",
         // created: "2022-08-20T19:11:21",
         // lastmodified: "2022-08-20T19:11:21",
-    },
-
-];
+    }],
+]);

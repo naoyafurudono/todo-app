@@ -33,11 +33,12 @@ const TodoItem: React.FC<ItemProp> = (props) => {
 var idseed = 0;
 const genID = () => {
     const str = ("0".repeat(10) + String(idseed)).substring(-10);
+    console.log(str)
     idseed += 1;
     return str;
 };
 
-export const createItem = (statement: string) => {
+export const createItem = function(statement: string): Item {
     return {
         id: genID(),
         done: false,

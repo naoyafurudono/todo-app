@@ -253,6 +253,7 @@ sequenceDiagram
 - [x] Viewでのイベント処理
 - [x] サーバ・view間でのイベント連携
 - [ ] SQL server
+  - [参考](https://cloud.google.com/sql/docs/mysql/connect-overview?hl=ja): Cloud SQLのドキュメント（読み途中）
 - [ ] HTTP server += SQL server
 - [ ] Session += SQL connection
 - [ ] Session += transformer

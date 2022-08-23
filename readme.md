@@ -5,6 +5,9 @@
 > どんな技術を使えるかや、その使い方を見せることが目的。
 > このreadmeを含めて、独力で開発する。
 
+ブログポスト: <https://naoyafurudono.github.io/posts/todo-app/>
+実装した感想や、技術選定のモチベーションなど。
+
 ## 目次
 
 - [todo app](#todo-app)

@@ -3,7 +3,6 @@ package space
 import (
 	"log"
 	"net/http"
-	"todo-server/util/transformer"
 
 	"github.com/gorilla/websocket"
 )
@@ -12,7 +11,7 @@ import (
 type client struct {
 	// フロントエンドとの接続
 	socket *websocket.Conn
-	send   chan *transformer.Event
+	send   chan *State
 	space  *Space
 	name   string
 }
@@ -21,10 +20,10 @@ type client struct {
 // ws接続の切断で終了する
 func (c *client) fromClient() {
 	for {
-		var cmd transformer.Command
+		var cmd Request
 		if err := c.socket.ReadJSON(&cmd); err == nil {
-			msg := forwardMessage{&cmd, c}
-			c.space.forward <- &msg
+			request := forwardMessage{&cmd, c}
+			c.space.forward <- &request
 			log.Printf("client %s read succeed\n", c.name)
 		} else {
 			log.Println("client.fromClient:", err)
@@ -36,9 +35,8 @@ func (c *client) fromClient() {
 
 // spaceからのsendチャネルのclose、またはws接続の切断で終了する
 func (c *client) toClient() {
-	for event := range c.send {
-		log.Printf("client %s: toClient: %s\n", c.name, event.Command.Operation)
-		if err := c.socket.WriteJSON(event); err != nil {
+	for state := range c.send {
+		if err := c.socket.WriteJSON(state); err != nil {
 			break
 		}
 	}

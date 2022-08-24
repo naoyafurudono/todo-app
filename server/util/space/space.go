@@ -4,37 +4,10 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"time"
-	"todo-server/util/transformer"
 )
 
-// type SpaceHandle struct {
-// 	spaces map[string]Space
-// }
-
-// // func newSpaceHandle() SpaceHandle {
-// // 	return SpaceHandle{}
-// // }
-
-// // spaceへの接続要求を処理する。
-// // 該当スペースで受け入れる
-// func (handle SpaceHandle) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-// 	query := r.URL.Query()
-// 	spaceName := query.Get("space")
-// 	if spaceName == "" {
-// 		spaceName = "sample"
-// 	}
-
-// 	if _, exist := handle.spaces[spaceName]; !exist {
-// 		space := NewSpace(spaceName)
-// 		handle.spaces[spaceName] = space
-// 		space.run()
-// 	}
-
-// }
-
 type forwardMessage struct {
-	command *transformer.Command
+	command *Request
 	source  *client
 }
 
@@ -44,6 +17,8 @@ type Space struct {
 	join    chan *client
 	leave   chan *client
 	clients map[*client]bool // 所有する
+	state   State
+	idGen   func() ID
 	name    string
 }
 
@@ -53,23 +28,10 @@ func NewSpace(name string) Space {
 		join:    make(chan *client),
 		leave:   make(chan *client),
 		clients: make(map[*client]bool),
+		state:   make(map[ID]*TodoItem),
+		idGen:   IDGenGenerator(),
 		name:    name,
 	}
-}
-
-var initEvent = transformer.Event{
-	Command: transformer.Command{
-		Operation: transformer.SyncState,
-		Payload: transformer.Payload{
-			ID:        "dummy from server to init client",
-			Statement: "dummy from server to init client",
-			Sync: transformer.Sync{
-				Items:     map[string]*transformer.TodoItem{},
-				Timestamp: "2022-08-24T19:08:29.75372007+09:00",
-			},
-		},
-	},
-	Timestamp: "2022-08-24T19:08:29.75372007+09:00",
 }
 
 // spaceのセッション
@@ -86,60 +48,20 @@ func (s Space) Run() {
 			delete(s.clients, client)
 			close(client.send)
 
-		case msg := <-s.forward:
-			log.Printf("s.Run: forward message of %s", msg.command.Operation)
-			event := transformer.Event{
-				Command:   *msg.command,
-				Timestamp: time.Now().Format(time.RFC3339Nano),
-			}
+		case message := <-s.forward:
+			log.Printf("s.Run: forward message of %s", message.command.Operation)
 
-			switch msg.command.Operation {
-			case transformer.PublishState:
-				log.Println("publishState!!")
-				if len(s.clients) == 1 {
-					log.Println("sync from server")
-					for client := range s.clients {
-						select {
-						case client.send <- &initEvent:
-							// success to send message
-						default:
-							// 送信に失敗
-							// clientを殺す
-							delete(s.clients, client)
-							close(client.send)
-						}
-					}
-				} else {
-					for client := range s.clients {
-						if client != msg.source {
-							select {
-							case client.send <- &event:
-								// success to send message
-								break
-							default:
-								// 送信に失敗
-								// clientを殺す
-								delete(s.clients, client)
-								close(client.send)
-								continue
-							}
-						}
-					}
+			s.Exec(*message.command)
+			for client := range s.clients {
+				select {
+				case client.send <- &s.state:
+					// success to send message
+				default:
+					// 送信に失敗
+					// clientを殺す
+					delete(s.clients, client)
+					close(client.send)
 				}
-
-			default:
-				for client := range s.clients {
-					select {
-					case client.send <- &event:
-						// success to send message
-					default:
-						// 送信に失敗
-						// clientを殺す
-						delete(s.clients, client)
-						close(client.send)
-					}
-				}
-
 			}
 		}
 	}
@@ -161,7 +83,7 @@ func (s Space) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	client := &client{
 		socket: socket,
-		send:   make(chan *transformer.Event, messageBufferSize),
+		send:   make(chan *State, messageBufferSize),
 		space:  &s,
 		name:   getName(),
 	}
@@ -176,6 +98,7 @@ func (s Space) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	defer func() { s.leave <- client }()
 	go client.toClient()
 	log.Println("start listening")
+	client.send <- &s.state
 	client.fromClient()
 }
 

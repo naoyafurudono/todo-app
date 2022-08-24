@@ -1,8 +1,23 @@
 import { ID } from '../components/TodoItem';
 import { extendItems, Items, itemsSample } from '../components/TodoList';
 
-type Sync = State;
-export const dummySync: Sync = { items: itemsSample, timestamp: 'dummy', mode: 'sync' };
+// type Sync = State;
+type Sync = {
+    items: Items,
+    timestamp: string,
+    mode: EngineMode,
+};
+
+type Publish = {
+    flag: boolean,
+    command: Command | undefined
+}
+type State = {
+    items: Items,
+    timestamp: string,
+    mode: EngineMode,
+    publish: Publish,  // 特別。送る瞬間だけ値がセットされる。このフィールド自体は共有されない。
+};
 
 type Operation = (
     'toggleDone'
@@ -10,7 +25,7 @@ type Operation = (
     | 'create'
     | 'syncState'
     | 'publishState'
-    | 'switchMode' // internal
+    // | 'switchMode' // internal
 );
 
 export type Command = {
@@ -19,6 +34,28 @@ export type Command = {
         id: ID;
         statement: string;
         sync: Sync;
+    }
+};
+
+export var dummyPublish: Publish = {
+    flag: false,
+    command: undefined
+};
+export const stateSample: State = {
+    items: itemsSample,
+    timestamp: 'dummy',
+    mode: 'sync',
+    publish: dummyPublish,
+};
+
+
+export const dummySync: Sync = { items: itemsSample, timestamp: 'dummy', mode: 'sync' };// , publish: dummyPublish };
+const dummyCommand: Command = {
+    operation: 'toggleDone',
+    payload: {
+        id: 'dummy id',
+        statement: 'dummy statement',
+        sync: dummySync,
     }
 };
 type JCommand = {
@@ -57,13 +94,14 @@ export const encodeToJSON = function (command: Command): string {
 };
 export const decodeJSON = function (jsonStr: string): Event {
     const obj: JEvent = JSON.parse(jsonStr);
-    let jcommand: JCommand = {
+    let jcommand: Command = {
         ...obj.command,
         payload: {
             ...obj.command.payload,
             sync: {
                 ...obj.command.payload.sync,
-                items: new Map(Object.entries(obj.command.payload.sync.items))
+                // publish: ,
+                items: new Map(Object.entries(obj.command.payload.sync.items)),
             }
         }
     };
@@ -71,35 +109,7 @@ export const decodeJSON = function (jsonStr: string): Event {
 };
 
 
-// type State = Items;
-type State = {
-    items: Items,
-    timestamp: string,
-    mode: EngineMode
-};
-export const stateSample: State = {
-    items: itemsSample,
-    timestamp: 'dummy',
-    mode: 'sync',
-};
-
 export type Reducer = (state: State, event: Event) => State;
-type Publish = {
-    flag: boolean,
-    command: Command
-}
-export var publish: Publish = {
-    flag: false,
-    command: {
-        operation: 'syncState',
-        payload: {
-            id: 'dummy_id_by_publish',
-            statement: 'dummy_Statement_by_publish',
-            sync: dummySync
-        }
-    }
-};
-
 export const reducer: Reducer = (state: State, event: Event) => {
     switch (state.mode) {
         case 'interactive':
@@ -112,7 +122,23 @@ const interactiveReducer = function (state: State, event: Event): State {
     console.log('interactive reducer invoked');
     const { items } = state;
     const op = event.command.operation;
+    let newState: State;
     switch (op) {
+        case 'publishState':
+            {
+                newState = { ...state };
+                newState.publish = {
+                    flag: true,
+                    command: {
+                        operation: 'syncState',
+                        payload: {
+                            ...dummyCommand.payload,
+                            sync: state,
+                        }
+                    }
+                };
+                return newState;
+            }
         case 'toggleDone':
             {
                 const { id } = event.command.payload;
@@ -126,7 +152,8 @@ const interactiveReducer = function (state: State, event: Event): State {
                     statement: target.statement,
                     done: !target.done
                 });
-                return { ...state, items: newItems, timestamp: event.timestamp };
+                newState = { ...state, items: newItems, timestamp: event.timestamp };
+                break;
             }
         case 'updateStatement':
             {
@@ -137,34 +164,29 @@ const interactiveReducer = function (state: State, event: Event): State {
                     return state;
                 };
                 target.statement = statement;
-                return { ...state, items: newItems, timestamp: event.timestamp };
+                newState = { ...state, items: newItems, timestamp: event.timestamp };
+                break;
             }
         case 'create':
             {
                 const { statement } = event.command.payload;
                 const id = event.timestamp;
                 const newItems = extendItems(id, statement, items);
-                return { ...state, items: newItems, timestamp: event.timestamp };
-            }
-
-        case 'publishState':
-            {
-                console.log('publish state')
-                publish.flag = true;
-                publish.command.payload.sync = state;
-                console.log(publish);
-                return state;
+                newState = { ...state, items: newItems, timestamp: event.timestamp };
+                break;
             }
         case 'syncState':
-            return state;
-        case 'switchMode':
-            {
-                return { ...state, mode: 'sync' }
-            }
+            newState = state;
+            break;
+        // case 'switchMode':
+        //     {
+        //         newState = { ...state, mode: 'sync' }
+        //         break;
+        //     }
     }
+    newState.publish = dummyPublish;
+    return newState;
 };
-
-// --- sync ---
 
 type Engine_state = {
     events: Event[];
@@ -180,13 +202,15 @@ const syncReducer = function (items: State, event: Event): State {
     switch (op) {
         case 'syncState':
             const sync = event.command.payload.sync;
-            let state = sync;
+            let state: State = { ...sync, publish: dummyPublish };
             engine_state.events
                 .filter(({ timestamp }) => timestamp > sync.timestamp) // なくても変わらない想定
                 .forEach(event => state = interactiveReducer(state, event));
             engine_state.events = [];
             console.log('finish sync mode')
-            return { ...state, mode: 'interactive' };
+            const next: State = { ...state, mode: 'interactive' };
+            console.log('end sync ', next);
+            return next;
         case 'publishState':
             return items;
         default:
@@ -194,7 +218,6 @@ const syncReducer = function (items: State, event: Event): State {
             return items;
     }
 }
-// --- end sync ---
 
 export type EngineMode = 'sync' | 'interactive'
 export const reducers: Map<EngineMode, Reducer> = new Map([

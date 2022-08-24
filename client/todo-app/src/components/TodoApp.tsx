@@ -3,7 +3,7 @@ import Controller, { FilterCond } from "./Controller";
 import Input from "./Input";
 import TodoList from "./TodoList";
 import { ID } from './TodoItem';
-import reducer, { encodeToJSON, decodeJSON, Reducer, Command, dummySync, Event, stateSample, publish } from '../engine/event-engine';
+import reducer, { encodeToJSON, decodeJSON, Reducer, Command, dummySync, Event, stateSample } from '../engine/event-engine';
 
 export var ackInit: Command = {
     operation: 'publishState',
@@ -52,18 +52,24 @@ const TodoApp: React.FC<{ space: string }> = ({ space }) => {
             const msg = event.data;
             const te: Event = decodeJSON(msg);
             dispatch(te);
-            console.log(publish);
-            if (publish.flag) {
-                console.log('publish to ws')
-                submitTodoCommand(publish.command);
-                publish.flag = false;
-            }
+            // console.log(publish);
+            // if (publish.flag) {
+            //     console.log('publish to ws')
+            //     submitTodoCommand(publish.command);
+            //     publish.flag = false;
+            // }
         });
 
     }, [])
+    useEffect(() => {
+        console.log('!!!!!')
+        if (state.mode === 'interactive' && state.publish && state.publish.command) {
+            console.log('publish to ws')
+            submitTodoCommand(state.publish.command);
+        }
+    }, [state.mode, state.publish])
+
     const [show, setShow] = useState<FilterCond>('all');
-
-
     const handleCreateNewItem = (e: React.SyntheticEvent): void => {
         e.preventDefault();
         const target = e.target as typeof e.target & { value: string }[];

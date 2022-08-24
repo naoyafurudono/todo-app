@@ -17,7 +17,16 @@ const ackInit: Command = {
 // アプリの機能的なトップレベル
 // Todoリストの状態管理やサーバとのコネクションの管理を行う
 const TodoApp: React.FC<{ space: string }> = ({ space }) => {
-    // -------- setup connection to the server -------
+    // ----------- setup event subscriber -----------
+    const [state, dispatch] = useReducer<Reducer>(reducer, stateSample);
+    // publish my state to sync with new comer
+    useEffect(() => {
+        if (state.mode === 'interactive' && state.publish && state.publish.command) {
+            submitTodoCommand(state.publish.command);
+        }
+    }, [state.mode, state.publish])
+
+    // setup connection to the server 
     const clientRef = useRef<WebSocket>();
     const submitTodoCommand = function (te: Command) {
         const ws = clientRef.current;
@@ -27,7 +36,7 @@ const TodoApp: React.FC<{ space: string }> = ({ space }) => {
         ws.send(encodeToJSON(te));
     };
 
-    // setup ws
+    // setup ws, connect to the reducer
     useEffect(() => {
         const wsClient = new WebSocket("ws://localhost:8080/ws")
         clientRef.current = wsClient;
@@ -36,31 +45,13 @@ const TodoApp: React.FC<{ space: string }> = ({ space }) => {
             submitTodoCommand(ackInit)
         };
         wsClient.onclose = () => console.log("closed")
-        return () => { wsClient.close() };
-    }, []);
-    // ----------------------------------------------
-
-    // ----------- setup event subscriber -----------
-    const [state, dispatch] = useReducer<Reducer>(reducer, stateSample);
-    useEffect(() => {
-        if (!clientRef.current) {
-            alert('bad WS connection');
-            return;
-        }
-        const ws = clientRef.current;
-        ws.onmessage = ((event: any) => {
+        wsClient.onmessage = ((event: any) => {
             const msg = event.data;
             const te: Event = decodeJSON(msg);
             dispatch(te);
         });
-    }, [])
-
-    // publish my state to sync with new comer
-    useEffect(() => {
-        if (state.mode === 'interactive' && state.publish && state.publish.command) {
-            submitTodoCommand(state.publish.command);
-        }
-    }, [state.mode, state.publish])
+        return () => { wsClient.close() };
+    }, []);
     // -------------------------------------------------------
 
     // --------------------- view ----------------------------

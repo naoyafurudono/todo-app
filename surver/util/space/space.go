@@ -57,6 +57,21 @@ func NewSpace(name string) Space {
 	}
 }
 
+var initEvent = transformer.Event{
+	Command: transformer.Command{
+		Operation: transformer.SyncState,
+		Payload: transformer.Payload{
+			ID:        "dummy from server to init client",
+			Statement: "dummy from server to init client",
+			Sync: transformer.Sync{
+				Items:     map[string]*transformer.TodoItem{},
+				Timestamp: "2022-08-24T19:08:29.75372007+09:00",
+			},
+		},
+	},
+	Timestamp: "2022-08-24T19:08:29.75372007+09:00",
+}
+
 // spaceのセッション
 func (s Space) Run() {
 	log.Println("start running")
@@ -71,9 +86,6 @@ func (s Space) Run() {
 			delete(s.clients, client)
 			close(client.send)
 
-			// if len(s.clients) == 0 {
-			// 	return
-			// }
 		case msg := <-s.forward:
 			log.Printf("s.Run: forward message of %s", msg.command.Operation)
 			event := transformer.Event{
@@ -86,20 +98,6 @@ func (s Space) Run() {
 				log.Println("publishState!!")
 				if len(s.clients) == 1 {
 					log.Println("sync from server")
-					initEvent := transformer.Event{
-						Command: transformer.Command{
-							Operation: transformer.SyncState,
-							Payload: transformer.Payload{
-								ID:        "dummy from server to init client",
-								Statement: "dummy from server to init client",
-								Sync: transformer.Sync{
-									Items:     map[string]*transformer.TodoItem{},
-									Timestamp: event.Timestamp,
-								},
-							},
-						},
-						Timestamp: event.Timestamp,
-					}
 					for client := range s.clients {
 						select {
 						case client.send <- &initEvent:

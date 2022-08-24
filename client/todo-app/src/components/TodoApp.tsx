@@ -14,16 +14,17 @@ export var ackInit: Command = {
     }
 };
 
+// アプリの機能的なトップレベル
+// Todoリストの状態管理やサーバとのコネクションの管理を行う
 const TodoApp: React.FC<{ space: string }> = ({ space }) => {
+    // -------- setup connection to the server -------
     const clientRef = useRef<WebSocket>();
     const submitTodoCommand = function (te: Command) {
         const ws = clientRef.current;
         if (!ws) {
-            // alert("network error");
             return;
         }
         ws.send(encodeToJSON(te));
-        // ws.send(JSON.stringify(te));
     };
 
     // set up ws
@@ -39,8 +40,9 @@ const TodoApp: React.FC<{ space: string }> = ({ space }) => {
 
         return () => { wsClient.close() };
     }, []);
+    // ----------------------------------------------
 
-    // set up event subscriber
+    // ----------- setup event subscriber -----------
     const [state, dispatch] = useReducer<Reducer>(reducer, stateSample);
     useEffect(() => {
         if (!clientRef.current) {
@@ -52,24 +54,19 @@ const TodoApp: React.FC<{ space: string }> = ({ space }) => {
             const msg = event.data;
             const te: Event = decodeJSON(msg);
             dispatch(te);
-            // console.log(publish);
-            // if (publish.flag) {
-            //     console.log('publish to ws')
-            //     submitTodoCommand(publish.command);
-            //     publish.flag = false;
-            // }
         });
 
     }, [])
+
+    // publish my state to sync with new comer
     useEffect(() => {
-        console.log('!!!!!')
         if (state.mode === 'interactive' && state.publish && state.publish.command) {
-            console.log('publish to ws')
             submitTodoCommand(state.publish.command);
         }
     }, [state.mode, state.publish])
+    // -------------------------------------------------------
 
-    const [show, setShow] = useState<FilterCond>('all');
+    // --------------------- view ----------------------------
     const handleCreateNewItem = (e: React.SyntheticEvent): void => {
         e.preventDefault();
         const target = e.target as typeof e.target & { value: string }[];
@@ -99,6 +96,7 @@ const TodoApp: React.FC<{ space: string }> = ({ space }) => {
         submitTodoCommand(command);
     }
 
+    const [show, setShow] = useState<FilterCond>('all');
     const onFilterChange = (e: any, op: FilterCond) => {
         e.preventDefault();
         setShow(op);
@@ -106,7 +104,6 @@ const TodoApp: React.FC<{ space: string }> = ({ space }) => {
 
     return (
         <div>
-
             <header>
                 space: {space}
             </header>
@@ -115,6 +112,7 @@ const TodoApp: React.FC<{ space: string }> = ({ space }) => {
             <TodoList items={state.items} show={show} onToggleDone={handleToggleDone} />
         </div>
     );
+    // -------------------------------------------------------
 
 };
 

@@ -3,6 +3,7 @@ package space
 import (
 	"log"
 	"net/http"
+	"time"
 	"todo-server/util/transformer"
 )
 
@@ -31,12 +32,9 @@ import (
 
 // }
 
-// type Message string
-type Message = transformer.Command
-
 // チャットの部屋
 type Space struct {
-	forward chan *Message
+	forward chan *transformer.Command
 	join    chan *client
 	leave   chan *client
 	clients map[*client]bool // 所有する
@@ -45,7 +43,7 @@ type Space struct {
 
 func NewSpace(name string) Space {
 	return Space{
-		forward: make(chan *Message),
+		forward: make(chan *transformer.Command),
 		join:    make(chan *client),
 		leave:   make(chan *client),
 		clients: make(map[*client]bool),
@@ -57,7 +55,7 @@ func NewSpace(name string) Space {
 func (s Space) Run() {
 	log.Println("start running")
 	for {
-		log.Println("running in loop")
+		log.Printf("space: client: %d\n", len(s.clients))
 		select {
 		case client := <-s.join:
 			log.Println("s.Run: join a client")
@@ -72,10 +70,13 @@ func (s Space) Run() {
 			// }
 		case msg := <-s.forward:
 			log.Println("s.Run: forward message")
+			event := transformer.Event{
+				Command:   *msg,
+				Timestamp: time.Now().Format(time.RFC3339Nano),
+			}
 			for client := range s.clients {
-				client := client
 				select {
-				case client.send <- msg:
+				case client.send <- &event:
 					// success to send message
 				default:
 					// 送信に失敗
@@ -83,6 +84,36 @@ func (s Space) Run() {
 					delete(s.clients, client)
 					close(client.send)
 				}
+			}
+
+			if len(s.clients) == 1 && msg.Operation == transformer.PublishState {
+				log.Println("sync from server")
+				initEvent := transformer.Event{
+					Command: transformer.Command{
+						Operation: transformer.SyncState,
+						Payload: transformer.Payload{
+							ID:        "dummy from server to init client",
+							Statement: "dummy from server to init client",
+							Sync: transformer.Sync{
+								Items:     map[string]*transformer.TodoItem{},
+								Timestamp: event.Timestamp,
+							},
+						},
+					},
+					Timestamp: event.Timestamp,
+				}
+				for client := range s.clients {
+					select {
+					case client.send <- &initEvent:
+						// success to send message
+					default:
+						// 送信に失敗
+						// clientを殺す
+						delete(s.clients, client)
+						close(client.send)
+					}
+				}
+
 			}
 		}
 	}
@@ -104,7 +135,7 @@ func (s Space) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	client := &client{
 		socket: socket,
-		send:   make(chan *Message, messageBufferSize),
+		send:   make(chan *transformer.Event, messageBufferSize),
 		space:  &s,
 	}
 	// if authCookie, err := req.Cookie("auth"); err == nil {

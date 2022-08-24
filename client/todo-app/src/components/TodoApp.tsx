@@ -1,34 +1,28 @@
-import React, { useEffect, useState, useRef, useReducer } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import Controller, { FilterCond } from "./Controller";
 import Input from "./Input";
-import TodoList from "./TodoList";
+import TodoList, { Items, itemsSample } from "./TodoList";
 import { ID } from './TodoItem';
-import reducer, { encodeToJSON, decodeJSON, Reducer, Command, dummySync, Event, stateSample } from '../engine/event-engine';
+// import reducer, { encodeToJSON, decodeJSON, Reducer, Command, dummySync, Event, stateSample } from '../engine/event-engine';
+import { Request, encodeToJSON, State, decodeJSON } from "../engine/serverInterface";
 
-const ackInit: Command = {
-    operation: 'publishState',
-    payload: {
-        id: 'dummy_id_by_publish',
-        statement: 'dummy_Statement_by_publish',
-        sync: dummySync
-    }
-};
 
 // アプリの機能的なトップレベル
 // Todoリストの状態管理やサーバとのコネクションの管理を行う
 const TodoApp: React.FC<{ space: string }> = ({ space }) => {
     // ----------- setup event subscriber -----------
-    const [state, dispatch] = useReducer<Reducer>(reducer, stateSample);
+    // const [state, dispatch] = useReducer<Reducer>(reducer, stateSample);
+    const [state, setState] = useState<Items>(itemsSample);
     // publish my state to sync with new comer
-    useEffect(() => {
-        if (state.mode === 'interactive' && state.publish && state.publish.command) {
-            submitTodoCommand(state.publish.command);
-        }
-    }, [state.mode, state.publish])
+    // useEffect(() => {
+    //     if (state.mode === 'interactive' && state.publish && state.publish.command) {
+    //         submitTodoCommand(state.publish.command);
+    //     }
+    // }, [state.mode, state.publish])
 
     // setup connection to the server 
     const clientRef = useRef<WebSocket>();
-    const submitTodoCommand = function (te: Command) {
+    const submitTodoRequest = function (te: Request) {
         const ws = clientRef.current;
         if (!ws) {
             return;
@@ -42,13 +36,14 @@ const TodoApp: React.FC<{ space: string }> = ({ space }) => {
         clientRef.current = wsClient;
         wsClient.onopen = () => {
             console.log("connected");
-            submitTodoCommand(ackInit)
+            // submitTodoCommand(ackInit)
         };
-        wsClient.onclose = () => console.log("closed")
+        wsClient.onclose = () => console.log("closed");
         wsClient.onmessage = ((event: any) => {
-            const msg = event.data;
-            const te: Event = decodeJSON(msg);
-            dispatch(te);
+            const msg: string = event.data;
+            console.log(msg);
+            const newState: State = decodeJSON(msg);
+            setState(newState)
         });
         return () => { wsClient.close() };
     }, []);
@@ -59,29 +54,27 @@ const TodoApp: React.FC<{ space: string }> = ({ space }) => {
         e.preventDefault();
         const target = e.target as typeof e.target & { value: string }[];
         const statement = target[0].value;
-        const command: Command = {
+        const request: Request = {
             operation: "create",
             payload: {
                 id: "dummy_on_handleCreateNewItem", // これはエンジンが指定する。この時点ではこの命令が発行されるとはかぎらないので 
                 statement: statement,
-                sync: dummySync,
             }
         };
-        submitTodoCommand(command);
+        submitTodoRequest(request);
         return
     }
 
     const handleToggleDone = (e: any, id: ID) => {
         e.preventDefault();
-        const command: Command = {
+        const request: Request = {
             operation: "toggleDone",
             payload: {
                 id: id,
                 statement: "dummy_on_toggleDone",
-                sync: dummySync,
             }
         };
-        submitTodoCommand(command);
+        submitTodoRequest(request);
     }
 
     const [show, setShow] = useState<FilterCond>('all');
@@ -97,7 +90,7 @@ const TodoApp: React.FC<{ space: string }> = ({ space }) => {
             </header>
             <Input handleSubmit={handleCreateNewItem} />
             <Controller onFilterChange={onFilterChange} current={show} />
-            <TodoList items={state.items} show={show} onToggleDone={handleToggleDone} />
+            <TodoList items={state} show={show} onToggleDone={handleToggleDone} />
         </div>
     );
     // -------------------------------------------------------

@@ -1,11 +1,18 @@
 import React, { useEffect, useState, useRef, useReducer } from "react";
 import Controller, { FilterCond } from "./Controller";
 import Input from "./Input";
-import TodoList, { itemsSample } from "./TodoList";
+import TodoList from "./TodoList";
 import { ID } from './TodoItem';
-import { Command, Event } from '../engine/event-engine';
-import reducer from "../engine/event-engine";
+import reducer, { encodeToJSON, decodeJSON, Reducer, Command, dummySync, Event, stateSample } from '../engine/event-engine';
 
+export var ackInit: Command = {
+    operation: 'publishState',
+    payload: {
+        id: 'dummy_id_by_publish',
+        statement: 'dummy_Statement_by_publish',
+        sync: dummySync
+    }
+};
 
 const TodoApp: React.FC<{ space: string }> = ({ space }) => {
     const clientRef = useRef<WebSocket>()
@@ -15,7 +22,8 @@ const TodoApp: React.FC<{ space: string }> = ({ space }) => {
             // alert("network error");
             return;
         }
-        ws.send(JSON.stringify(te));
+        ws.send(encodeToJSON(te));
+        // ws.send(JSON.stringify(te));
     };
 
     // set up ws
@@ -24,6 +32,7 @@ const TodoApp: React.FC<{ space: string }> = ({ space }) => {
         clientRef.current = wsClient;
         wsClient.onopen = () => {
             console.log("connect");
+            submitTodoCommand(ackInit)
             // wsClient.send('hello from client')
         };
         wsClient.onclose = () => console.log("closed")
@@ -33,7 +42,7 @@ const TodoApp: React.FC<{ space: string }> = ({ space }) => {
     }, []);
 
     // set up event subscriber
-    const [items, dispatch] = useReducer(reducer, itemsSample);
+    const [state, dispatch] = useReducer<Reducer>(reducer, stateSample);
     useEffect(() => {
         if (!clientRef.current) {
             // alert('bad WS connection');
@@ -42,8 +51,10 @@ const TodoApp: React.FC<{ space: string }> = ({ space }) => {
         const ws = clientRef.current;
         ws.onmessage = ((event: any) => {
             const msg = event.data;
-            const te: Event = JSON.parse(msg);
-            dispatch(te)
+            const te: Event = decodeJSON(msg);
+            // const te: Event = JSON.parse(msg);
+            console.log(te);
+            dispatch(te);
         });
 
     }, [])
@@ -59,6 +70,7 @@ const TodoApp: React.FC<{ space: string }> = ({ space }) => {
             payload: {
                 id: "dummy_on_handleCreateNewItem", // これはエンジンが指定する。この時点ではこの命令が発行されるとはかぎらないので 
                 statement: statement,
+                sync: dummySync,
             }
         };
         submitTodoCommand(command);
@@ -72,6 +84,7 @@ const TodoApp: React.FC<{ space: string }> = ({ space }) => {
             payload: {
                 id: id,
                 statement: "dummy_on_toggleDone",
+                sync: dummySync,
             }
         };
         submitTodoCommand(command);
@@ -90,7 +103,7 @@ const TodoApp: React.FC<{ space: string }> = ({ space }) => {
             </header>
             <Input handleSubmit={handleCreateNewItem} />
             <Controller onFilterChange={onFilterChange} current={show} />
-            <TodoList items={items} show={show} onToggleDone={handleToggleDone} />
+            <TodoList items={state.items} show={show} onToggleDone={handleToggleDone} />
         </div>
     );
 

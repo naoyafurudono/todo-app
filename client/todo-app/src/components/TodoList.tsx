@@ -52,14 +52,14 @@ export const itemsSample: Items = new Map([
     ["sample00", {
         id: "sample00",
         done: false,
-        statement: "just do it!!",
+        statement: "dummy1",
         // created: "2022-08-20T19:11:21",
         // lastmodified: "2022-08-20T19:11:21",
     }],
     ["sample01", {
         id: "sample01",
         done: true,
-        statement: "check did it",
+        statement: "dummy2 !!",
         // created: "2022-08-20T19:11:21",
         // lastmodified: "2022-08-20T19:11:21",
     }],

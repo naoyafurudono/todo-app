@@ -5,7 +5,7 @@ import TodoList from "./TodoList";
 import { ID } from './TodoItem';
 import reducer, { encodeToJSON, decodeJSON, Reducer, Command, dummySync, Event, stateSample } from '../engine/event-engine';
 
-export var ackInit: Command = {
+const ackInit: Command = {
     operation: 'publishState',
     payload: {
         id: 'dummy_id_by_publish',
@@ -27,7 +27,7 @@ const TodoApp: React.FC<{ space: string }> = ({ space }) => {
         ws.send(encodeToJSON(te));
     };
 
-    // set up ws
+    // setup ws
     useEffect(() => {
         const wsClient = new WebSocket("ws://localhost:8080/ws")
         clientRef.current = wsClient;

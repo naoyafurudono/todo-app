@@ -3,7 +3,7 @@ import Controller, { FilterCond } from "./Controller";
 import Input from "./Input";
 import TodoList from "./TodoList";
 import { ID } from './TodoItem';
-import reducer, { encodeToJSON, decodeJSON, Reducer, Command, dummySync, Event, stateSample } from '../engine/event-engine';
+import reducer, { encodeToJSON, decodeJSON, Reducer, Command, dummySync, Event, stateSample, publish } from '../engine/event-engine';
 
 export var ackInit: Command = {
     operation: 'publishState',
@@ -15,7 +15,7 @@ export var ackInit: Command = {
 };
 
 const TodoApp: React.FC<{ space: string }> = ({ space }) => {
-    const clientRef = useRef<WebSocket>()
+    const clientRef = useRef<WebSocket>();
     const submitTodoCommand = function (te: Command) {
         const ws = clientRef.current;
         if (!ws) {
@@ -31,9 +31,8 @@ const TodoApp: React.FC<{ space: string }> = ({ space }) => {
         const wsClient = new WebSocket("ws://localhost:8080/ws")
         clientRef.current = wsClient;
         wsClient.onopen = () => {
-            console.log("connect");
+            console.log("connected");
             submitTodoCommand(ackInit)
-            // wsClient.send('hello from client')
         };
         wsClient.onclose = () => console.log("closed")
 
@@ -45,16 +44,20 @@ const TodoApp: React.FC<{ space: string }> = ({ space }) => {
     const [state, dispatch] = useReducer<Reducer>(reducer, stateSample);
     useEffect(() => {
         if (!clientRef.current) {
-            // alert('bad WS connection');
+            alert('bad WS connection');
             return;
         }
         const ws = clientRef.current;
         ws.onmessage = ((event: any) => {
             const msg = event.data;
             const te: Event = decodeJSON(msg);
-            // const te: Event = JSON.parse(msg);
-            console.log(te);
             dispatch(te);
+            console.log(publish);
+            if (publish.flag) {
+                console.log('publish to ws')
+                submitTodoCommand(publish.command);
+                publish.flag = false;
+            }
         });
 
     }, [])

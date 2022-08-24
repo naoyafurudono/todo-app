@@ -4,8 +4,8 @@ import { FilterCond } from "./Controller";
 import TodoItem, { Item, ID, createItem } from './TodoItem'
 
 export type Items = Map<string, Item>;
-export const extendItems = function (statement: string, items: Items): Items {
-    const newItem: Item = createItem(statement);
+export const extendItems = function (id: ID, statement: string, items: Items): Items {
+    const newItem: Item = createItem(id, statement);
     const newItems = new Map([...items]);
     newItems.set(newItem.id, newItem);
     return newItems;
@@ -48,19 +48,19 @@ const filterItem = (op: FilterCond, item: Item) => {
 
 export default TodoList
 
-export const itemsSample: Items = new Map([
-    ["sample00", {
-        id: "sample00",
-        done: false,
-        statement: "dummy1",
-        // created: "2022-08-20T19:11:21",
-        // lastmodified: "2022-08-20T19:11:21",
-    }],
-    ["sample01", {
-        id: "sample01",
-        done: true,
-        statement: "dummy2 !!",
-        // created: "2022-08-20T19:11:21",
-        // lastmodified: "2022-08-20T19:11:21",
-    }],
-]);
+export const itemsSample: Items = new Map([]);
+//     ["sample00", {
+//         id: "sample00",
+//         done: false,
+//         statement: "dummy1",
+//         // created: "2022-08-20T19:11:21",
+//         // lastmodified: "2022-08-20T19:11:21",
+//     }],
+//     ["sample01", {
+//         id: "sample01",
+//         done: true,
+//         statement: "dummy2 !!",
+//         // created: "2022-08-20T19:11:21",
+//         // lastmodified: "2022-08-20T19:11:21",
+//     }],
+// ]);

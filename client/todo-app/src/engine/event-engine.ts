@@ -142,13 +142,17 @@ const interactiveReducer = function (state: State, event: Event): State {
         case 'create':
             {
                 const { statement } = event.command.payload;
-                const newItems = extendItems(statement, items);
+                const id = event.timestamp;
+                const newItems = extendItems(id, statement, items);
                 return { ...state, items: newItems, timestamp: event.timestamp };
             }
+
         case 'publishState':
             {
+                console.log('publish state')
                 publish.flag = true;
                 publish.command.payload.sync = state;
+                console.log(publish);
                 return state;
             }
         case 'syncState':
@@ -171,7 +175,7 @@ const engine_state: Engine_state = {
 
 // access global variable `engine_state`
 const syncReducer = function (items: State, event: Event): State {
-    console.log('sync reducer invoked');
+    console.log('sync reducer invoked', event);
     const op = event.command.operation;
     switch (op) {
         case 'syncState':
@@ -181,7 +185,10 @@ const syncReducer = function (items: State, event: Event): State {
                 .filter(({ timestamp }) => timestamp > sync.timestamp) // なくても変わらない想定
                 .forEach(event => state = interactiveReducer(state, event));
             engine_state.events = [];
+            console.log('finish sync mode')
             return { ...state, mode: 'interactive' };
+        case 'publishState':
+            return items;
         default:
             engine_state.events.push(event);
             return items;

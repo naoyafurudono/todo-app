@@ -14,18 +14,20 @@ type client struct {
 	socket *websocket.Conn
 	send   chan *transformer.Event
 	space  *Space
+	name   string
 }
 
-// フロント -- startRead --> broad cast
+// フロント -- fromClient --> broad cast
 // ws接続の切断で終了する
-func (c *client) startRead() {
+func (c *client) fromClient() {
 	for {
-		var msg transformer.Command
-		if err := c.socket.ReadJSON(&msg); err == nil {
+		var cmd transformer.Command
+		if err := c.socket.ReadJSON(&cmd); err == nil {
+			msg := forwardMessage{&cmd, c}
 			c.space.forward <- &msg
-			log.Println("read succeed")
+			log.Printf("client %s read succeed\n", c.name)
 		} else {
-			log.Println("client.startRead:", err)
+			log.Println("client.fromClient:", err)
 			break
 		}
 	}
@@ -33,9 +35,9 @@ func (c *client) startRead() {
 }
 
 // spaceからのsendチャネルのclose、またはws接続の切断で終了する
-func (c *client) startWrite() {
+func (c *client) toClient() {
 	for event := range c.send {
-		log.Printf("client.startWrite: %+v", *event)
+		log.Printf("client %s: toClient: %s\n", c.name, event.Command.Operation)
 		if err := c.socket.WriteJSON(event); err != nil {
 			break
 		}

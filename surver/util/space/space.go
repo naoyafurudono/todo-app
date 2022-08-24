@@ -1,6 +1,7 @@
 package space
 
 import (
+	"fmt"
 	"log"
 	"net/http"
 	"time"
@@ -32,9 +33,14 @@ import (
 
 // }
 
+type forwardMessage struct {
+	command *transformer.Command
+	source  *client
+}
+
 // チャットの部屋
 type Space struct {
-	forward chan *transformer.Command
+	forward chan *forwardMessage
 	join    chan *client
 	leave   chan *client
 	clients map[*client]bool // 所有する
@@ -43,7 +49,7 @@ type Space struct {
 
 func NewSpace(name string) Space {
 	return Space{
-		forward: make(chan *transformer.Command),
+		forward: make(chan *forwardMessage),
 		join:    make(chan *client),
 		leave:   make(chan *client),
 		clients: make(map[*client]bool),
@@ -69,42 +75,64 @@ func (s Space) Run() {
 			// 	return
 			// }
 		case msg := <-s.forward:
-			log.Println("s.Run: forward message")
+			log.Printf("s.Run: forward message of %s", msg.command.Operation)
 			event := transformer.Event{
-				Command:   *msg,
+				Command:   *msg.command,
 				Timestamp: time.Now().Format(time.RFC3339Nano),
 			}
-			for client := range s.clients {
-				select {
-				case client.send <- &event:
-					// success to send message
-				default:
-					// 送信に失敗
-					// clientを殺す
-					delete(s.clients, client)
-					close(client.send)
-				}
-			}
 
-			if len(s.clients) == 1 && msg.Operation == transformer.PublishState {
-				log.Println("sync from server")
-				initEvent := transformer.Event{
-					Command: transformer.Command{
-						Operation: transformer.SyncState,
-						Payload: transformer.Payload{
-							ID:        "dummy from server to init client",
-							Statement: "dummy from server to init client",
-							Sync: transformer.Sync{
-								Items:     map[string]*transformer.TodoItem{},
-								Timestamp: event.Timestamp,
+			switch msg.command.Operation {
+			case transformer.PublishState:
+				log.Println("publishState!!")
+				if len(s.clients) == 1 {
+					log.Println("sync from server")
+					initEvent := transformer.Event{
+						Command: transformer.Command{
+							Operation: transformer.SyncState,
+							Payload: transformer.Payload{
+								ID:        "dummy from server to init client",
+								Statement: "dummy from server to init client",
+								Sync: transformer.Sync{
+									Items:     map[string]*transformer.TodoItem{},
+									Timestamp: event.Timestamp,
+								},
 							},
 						},
-					},
-					Timestamp: event.Timestamp,
+						Timestamp: event.Timestamp,
+					}
+					for client := range s.clients {
+						select {
+						case client.send <- &initEvent:
+							// success to send message
+						default:
+							// 送信に失敗
+							// clientを殺す
+							delete(s.clients, client)
+							close(client.send)
+						}
+					}
+				} else {
+					for client := range s.clients {
+						if client != msg.source {
+							select {
+							case client.send <- &event:
+								// success to send message
+								break
+							default:
+								// 送信に失敗
+								// clientを殺す
+								delete(s.clients, client)
+								close(client.send)
+								continue
+							}
+						}
+					}
 				}
+
+			default:
 				for client := range s.clients {
 					select {
-					case client.send <- &initEvent:
+					case client.send <- &event:
 						// success to send message
 					default:
 						// 送信に失敗
@@ -137,6 +165,7 @@ func (s Space) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		socket: socket,
 		send:   make(chan *transformer.Event, messageBufferSize),
 		space:  &s,
+		name:   getName(),
 	}
 	// if authCookie, err := req.Cookie("auth"); err == nil {
 	// 	name := authCookie.Value
@@ -147,7 +176,15 @@ func (s Space) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	s.join <- client
 	log.Println("succeed to join space")
 	defer func() { s.leave <- client }()
-	go client.startWrite()
+	go client.toClient()
 	log.Println("start listening")
-	client.startRead()
+	client.fromClient()
+}
+
+var nameseed = 0
+
+func getName() string {
+	name := fmt.Sprintf("%02d", nameseed)
+	nameseed += 1
+	return name
 }

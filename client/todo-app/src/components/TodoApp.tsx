@@ -36,8 +36,6 @@ const TodoApp: React.FC<{ space: string }> = ({ space }) => {
             submitTodoCommand(ackInit)
         };
         wsClient.onclose = () => console.log("closed")
-
-
         return () => { wsClient.close() };
     }, []);
     // ----------------------------------------------

@@ -252,13 +252,12 @@ sequenceDiagram
 - [x] View += WebSocket
 - [x] Viewでのイベント処理
 - [x] サーバ・view間でのイベント連携
+- [x] sync state命令を実装する
+  - 新しくセッションに参加したユーザのために、最新の状態を他の参加者に教えてほしい。そのための命令がsync state.
 - [ ] SQL server
   - [参考](https://cloud.google.com/sql/docs/mysql/connect-overview?hl=ja): Cloud SQLのドキュメント（読み途中）
 - [ ] HTTP server += SQL server
 - [ ] Session += SQL connection
-- [ ] Session += transformer
-- [ ] sync state命令を実装する
-  - 新しくセッションに参加したユーザのために、最新の状態を他の参加者に教えてほしい。そのための命令がsync state.
 
 sync state: 自身の最終更新タイムスタンプを引数にして発行する。その時刻以降のタイムスタンプを持っているクライアントは、自身の状態をupdate state命令で全体に強制する。update stateを発行する際は状態に加えて、発行の直前のタイムスタンプを引数に加える。
 update stateを実行すると、クライアントは自身の最終同期時刻をそのタイムスタンプ引数でアップデートする。もしupdate state命令のタイムスタンプが自身の最終更新時刻よりも古い場合、その命令は無視する。

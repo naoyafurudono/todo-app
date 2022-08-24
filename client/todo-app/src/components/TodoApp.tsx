@@ -53,7 +53,6 @@ const TodoApp: React.FC<{ space: string }> = ({ space }) => {
             const te: Event = decodeJSON(msg);
             dispatch(te);
         });
-
     }, [])
 
     // publish my state to sync with new comer
